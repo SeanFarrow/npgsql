@@ -31,36 +31,34 @@ namespace Npgsql
         {
             switch (code)
             {
-                case BackendMessageCode.AuthenticationRequest:
-                case BackendMessageCode.BackendKeyData:
-                case BackendMessageCode.BindComplete:
-                case BackendMessageCode.CloseComplete:
-                case BackendMessageCode.CompletedResponse:
-                case BackendMessageCode.CopyData:
-                case BackendMessageCode.CopyDone:
-                case BackendMessageCode.CopyBothResponse:
-                case BackendMessageCode.CopyInResponse:
-                case BackendMessageCode.CopyOutResponse:
-                case BackendMessageCode.DataRow:
-                case BackendMessageCode.EmptyQueryResponse:
-                case BackendMessageCode.ErrorResponse:
-                case BackendMessageCode.FunctionCall:
-                case BackendMessageCode.FunctionCallResponse:
-                case BackendMessageCode.NoData:
-                case BackendMessageCode.NoticeResponse:
-                case BackendMessageCode.NotificationResponse:
-                case BackendMessageCode.ParameterDescription:
-                case BackendMessageCode.ParameterStatus:
-                case BackendMessageCode.ParseComplete:
-                case BackendMessageCode.PasswordPacket:
-                case BackendMessageCode.PortalSuspended:
-                case BackendMessageCode.ReadyForQuery:
-                case BackendMessageCode.PrimaryKeepAlive:
-                case BackendMessageCode.RowDescription:
-                case BackendMessageCode.WalData:
-                    return;
-                default:
-                    throw new NpgsqlException("Unknown message code: " + code);
+            case BackendMessageCode.AuthenticationRequest:
+            case BackendMessageCode.BackendKeyData:
+            case BackendMessageCode.BindComplete:
+            case BackendMessageCode.CloseComplete:
+            case BackendMessageCode.CompletedResponse:
+            case BackendMessageCode.CopyData:
+            case BackendMessageCode.CopyDone:
+            case BackendMessageCode.CopyBothResponse:
+            case BackendMessageCode.CopyInResponse:
+            case BackendMessageCode.CopyOutResponse:
+            case BackendMessageCode.DataRow:
+            case BackendMessageCode.EmptyQueryResponse:
+            case BackendMessageCode.ErrorResponse:
+            case BackendMessageCode.FunctionCall:
+            case BackendMessageCode.FunctionCallResponse:
+            case BackendMessageCode.NoData:
+            case BackendMessageCode.NoticeResponse:
+            case BackendMessageCode.NotificationResponse:
+            case BackendMessageCode.ParameterDescription:
+            case BackendMessageCode.ParameterStatus:
+            case BackendMessageCode.ParseComplete:
+            case BackendMessageCode.PasswordPacket:
+            case BackendMessageCode.PortalSuspended:
+            case BackendMessageCode.ReadyForQuery:
+            case BackendMessageCode.RowDescription:
+                return;
+            default:
+                throw new NpgsqlException("Unknown message code: " + code);
             }
         }
 
@@ -129,7 +127,10 @@ namespace Npgsql
 
     internal static class EnumerableExtensions
     {
-        internal static string Join(this IEnumerable<string> values, string separator) => string.Join(separator, values);
+        internal static string Join(this IEnumerable<string> values, string separator)
+        {
+            return string.Join(separator, values);
+        }
     }
 
     /// <summary>
@@ -142,10 +143,12 @@ namespace Npgsql
 
         internal static NpgsqlTimeout Infinite = new NpgsqlTimeout(TimeSpan.Zero);
 
-        internal NpgsqlTimeout(TimeSpan expiration) => 
+        internal NpgsqlTimeout(TimeSpan expiration)
+        {
             _expiration = expiration == TimeSpan.Zero
                 ? DateTime.MaxValue
                 : DateTime.UtcNow + expiration;
+        }
 
         internal void Check()
         {
@@ -174,12 +177,13 @@ namespace Npgsql
 #endif
         }
 
-        public void Dispose() =>
+        public void Dispose()
+        {
 #if NET452
             Thread.CurrentThread.CurrentCulture = _oldCulture;
 #else
             CultureInfo.CurrentCulture = _oldCulture;
 #endif
-
+        }
     }
 }

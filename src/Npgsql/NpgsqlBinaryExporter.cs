@@ -36,9 +36,6 @@ namespace Npgsql
         readonly NpgsqlTypeHandler[] _typeHandlerCache;
         static readonly NpgsqlLogger Log = NpgsqlLogManager.GetCurrentClassLogger();
 
-        /// <inheritdoc />
-        public bool CancellationRequired => false;
-
         #endregion
 
         #region Construction / Initialization
