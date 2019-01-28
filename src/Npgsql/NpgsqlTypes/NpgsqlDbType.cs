@@ -496,6 +496,12 @@ namespace NpgsqlTypes
         [BuiltInPostgresType("tid", 27)]
         Tid = 53,
 
+        /// <summary>
+        /// Corresponds to the PostgreSQL "pg_lsn", a pointer to a location in the XLOG
+        /// </summary>
+        /// <remarks>See https://www.postgresql.org/docs/current/static/datatype-pg-lsn.html</remarks>
+        Lsn = 57,
+
         #endregion
 
         #region Special

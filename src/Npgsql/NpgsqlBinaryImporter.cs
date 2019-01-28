@@ -64,6 +64,9 @@ namespace Npgsql
 
         static readonly NpgsqlLogger Log = NpgsqlLogManager.GetCurrentClassLogger();
 
+        /// <inheritdoc />
+        bool ICancelable.CancellationRequired => true;
+
         #endregion
 
         #region Construction / Initialization

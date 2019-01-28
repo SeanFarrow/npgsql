@@ -153,7 +153,7 @@ namespace Npgsql
         internal PreparedStatementManager PreparedStatementManager;
 
         /// <summary>
-        /// If the connector is currently in COPY mode, holds a reference to the importer/exporter object.
+        /// If the connector is currently in COPY or REPLICATION mode, holds a reference to the importer/exporter object.
         /// Otherwise null.
         /// </summary>
         [CanBeNull] internal ICancelable CurrentCopyOperation;
@@ -1249,8 +1249,8 @@ namespace Npgsql
                 }
                 catch (Exception e)
                 {
-                    var socketException = e.InnerException as SocketException;
-                    if (socketException == null || socketException.SocketErrorCode != SocketError.ConnectionReset)
+
+                    if (!(e.InnerException is SocketException socketException) || socketException.SocketErrorCode != SocketError.ConnectionReset)
                         Log.Debug("Exception caught while attempting to cancel command", e, Id);
                 }
             }
@@ -1690,10 +1690,7 @@ namespace Npgsql
         {
             readonly NpgsqlConnector _connector;
 
-            internal UserAction(NpgsqlConnector connector)
-            {
-                _connector = connector;
-            }
+            internal UserAction(NpgsqlConnector connector) => _connector = connector;
 
             public void Dispose() => _connector.EndUserAction();
         }
@@ -1835,7 +1832,7 @@ namespace Npgsql
             var keepaliveSent = false;
             var keepaliveLock = new SemaphoreSlim(1, 1);
 
-            TimerCallback performKeepaliveMethod = state =>
+            void performKeepaliveMethod(object state)
             {
                 if (!keepaliveLock.Wait(0))
                     return;
@@ -1850,7 +1847,7 @@ namespace Npgsql
                 {
                     keepaliveLock.Release();
                 }
-            };
+            }
 
             using (StartUserAction(ConnectorState.Waiting))
             using (cancellationToken.Register(() => performKeepaliveMethod(null)))
@@ -1999,6 +1996,22 @@ namespace Npgsql
             }
         }
 
+        /// <summary>
+        /// Check if there is at least one byte either in the ReadBuffer or in the underlying stream.
+        /// This method does not perform reading.
+        /// </summary>
+        /// <returns></returns>
+        internal bool CanReadMore()
+        {
+            if (ReadBuffer.ReadBytesLeft > 0)
+                return true;
+
+            if (ReferenceEquals(_stream, _baseStream))
+                return _baseStream.DataAvailable;
+
+            throw new NotSupportedException($"Unexpected type of the underlying stream: {_stream.GetType()}.");
+        }
+
         #endregion Misc
     }
 
@@ -2049,6 +2062,11 @@ namespace Npgsql
         /// The connector is engaged in a COPY operation.
         /// </summary>
         Copy,
+
+        /// <summary>
+        /// The connector is either fetching or waiting for a replication message.
+        /// </summary>
+        Replication,
     }
 
 #pragma warning disable CA1717

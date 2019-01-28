@@ -22,11 +22,8 @@
 #endregion
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
-using System.Text;
 using Npgsql.BackendMessages;
 using Npgsql.FrontendMessages;
 using Npgsql.Logging;
@@ -61,6 +58,9 @@ namespace Npgsql
 
         public override bool CanWrite => _canWrite;
         public override bool CanRead => _canRead;
+
+        /// <inheritdoc />
+        public bool CancellationRequired => CanWrite;
 
         /// <summary>
         /// The copy binary format header signature
@@ -300,15 +300,9 @@ namespace Npgsql
 
         public override bool CanSeek => false;
 
-        public override long Seek(long offset, SeekOrigin origin)
-        {
-            throw new NotSupportedException();
-        }
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
 
-        public override void SetLength(long value)
-        {
-            throw new NotSupportedException();
-        }
+        public override void SetLength(long value) => throw new NotSupportedException();
 
         public override long Length => throw new NotSupportedException();
 
@@ -335,13 +329,13 @@ namespace Npgsql
                 throw new Exception("Can't use a binary copy stream for text writing");
         }
 
+        /// <inheritdoc />
+        public bool CancellationRequired => true;
+
         /// <summary>
         /// Cancels and terminates an ongoing import. Any data already written will be discarded.
         /// </summary>
-        public void Cancel()
-        {
-            ((NpgsqlRawCopyStream)BaseStream).Cancel();
-        }
+        public void Cancel() => ((NpgsqlRawCopyStream)BaseStream).Cancel();
     }
 
     /// <summary>
@@ -358,12 +352,12 @@ namespace Npgsql
                 throw new Exception("Can't use a binary copy stream for text reading");
         }
 
+        /// <inheritdoc />
+        public bool CancellationRequired => false;
+
         /// <summary>
         /// Cancels and terminates an ongoing import.
         /// </summary>
-        public void Cancel()
-        {
-            ((NpgsqlRawCopyStream)BaseStream).Cancel();
-        }
+        public void Cancel() => ((NpgsqlRawCopyStream)BaseStream).Cancel();
     }
 }
