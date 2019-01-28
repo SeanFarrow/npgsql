@@ -1,34 +1,9 @@
-﻿#region License
-// The PostgreSQL License
-//
-// Copyright (C) 2018 The Npgsql Development Team
-//
-// Permission to use, copy, modify, and distribute this software and its
-// documentation for any purpose, without fee, and without a written
-// agreement is hereby granted, provided that the above copyright notice
-// and this paragraph and the following two paragraphs appear in all copies.
-//
-// IN NO EVENT SHALL THE NPGSQL DEVELOPMENT TEAM BE LIABLE TO ANY PARTY
-// FOR DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES,
-// INCLUDING LOST PROFITS, ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS
-// DOCUMENTATION, EVEN IF THE NPGSQL DEVELOPMENT TEAM HAS BEEN ADVISED OF
-// THE POSSIBILITY OF SUCH DAMAGE.
-//
-// THE NPGSQL DEVELOPMENT TEAM SPECIFICALLY DISCLAIMS ANY WARRANTIES,
-// INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
-// AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS
-// ON AN "AS IS" BASIS, AND THE NPGSQL DEVELOPMENT TEAM HAS NO OBLIGATIONS
-// TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
-#endregion
-
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using JetBrains.Annotations;
 using NUnit.Framework;
 using NUnit.Framework.Interfaces;
 
@@ -130,8 +105,7 @@ namespace Npgsql.Tests
             using (cmd)
                 return cmd.ExecuteNonQuery();
         }
-
-        [CanBeNull]
+        
         public static object ExecuteScalar(this NpgsqlConnection conn, string sql, NpgsqlTransaction tx = null)
         {
             var cmd = tx == null ? new NpgsqlCommand(sql, conn) : new NpgsqlCommand(sql, conn, tx);
@@ -145,8 +119,7 @@ namespace Npgsql.Tests
             using (cmd)
                 return await cmd.ExecuteNonQueryAsync();
         }
-
-        [CanBeNull]
+        
         public static async Task<object> ExecuteScalarAsync(this NpgsqlConnection conn, string sql, NpgsqlTransaction tx = null)
         {
             var cmd = tx == null ? new NpgsqlCommand(sql, conn) : new NpgsqlCommand(sql, conn, tx);
@@ -201,7 +174,7 @@ namespace Npgsql.Tests
 
         public MonoIgnore(string ignoreText = null) { _ignoreText = ignoreText; }
 
-        public void BeforeTest([NotNull] ITest test)
+        public void BeforeTest(ITest test)
         {
             if (Type.GetType("Mono.Runtime") != null)
             {
@@ -212,7 +185,7 @@ namespace Npgsql.Tests
             }
         }
 
-        public void AfterTest([NotNull] ITest test) { }
+        public void AfterTest(ITest test) { }
         public ActionTargets Targets => ActionTargets.Test;
     }
 
@@ -226,7 +199,7 @@ namespace Npgsql.Tests
 
         public LinuxIgnore(string ignoreText = null) { _ignoreText = ignoreText; }
 
-        public void BeforeTest([NotNull] ITest test)
+        public void BeforeTest(ITest test)
         {
             var osEnvVar = Environment.GetEnvironmentVariable("OS");
             if (osEnvVar == null || osEnvVar != "Windows_NT")
@@ -238,7 +211,7 @@ namespace Npgsql.Tests
             }
         }
 
-        public void AfterTest([NotNull] ITest test) { }
+        public void AfterTest(ITest test) { }
         public ActionTargets Targets => ActionTargets.Test;
     }
 
@@ -252,7 +225,7 @@ namespace Npgsql.Tests
 
         public WindowsIgnore(string ignoreText = null) { _ignoreText = ignoreText; }
 
-        public void BeforeTest([NotNull] ITest test)
+        public void BeforeTest(ITest test)
         {
             var osEnvVar = Environment.GetEnvironmentVariable("OS");
             if (osEnvVar == "Windows_NT")
@@ -264,7 +237,7 @@ namespace Npgsql.Tests
             }
         }
 
-        public void AfterTest([NotNull] ITest test) { }
+        public void AfterTest(ITest test) { }
         public ActionTargets Targets => ActionTargets.Test;
     }
 

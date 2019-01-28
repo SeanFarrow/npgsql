@@ -1,43 +1,13 @@
-#region License
-// The PostgreSQL License
-//
-// Copyright (C) 2018 The Npgsql Development Team
-//
-// Permission to use, copy, modify, and distribute this software and its
-// documentation for any purpose, without fee, and without a written
-// agreement is hereby granted, provided that the above copyright notice
-// and this paragraph and the following two paragraphs appear in all copies.
-//
-// IN NO EVENT SHALL THE NPGSQL DEVELOPMENT TEAM BE LIABLE TO ANY PARTY
-// FOR DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES,
-// INCLUDING LOST PROFITS, ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS
-// DOCUMENTATION, EVEN IF THE NPGSQL DEVELOPMENT TEAM HAS BEEN ADVISED OF
-// THE POSSIBILITY OF SUCH DAMAGE.
-//
-// THE NPGSQL DEVELOPMENT TEAM SPECIFICALLY DISCLAIMS ANY WARRANTIES,
-// INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
-// AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS
-// ON AN "AS IS" BASIS, AND THE NPGSQL DEVELOPMENT TEAM HAS NO OBLIGATIONS
-// TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
-#endregion
-
 using System;
-using System.Collections;
-using System.Diagnostics;
-using System.Linq;
-using System.Threading.Tasks;
-using Npgsql;
-using NUnit.Framework;
 using System.Data;
 using System.IO;
-using System.Net;
+using System.Linq;
 using System.Net.Sockets;
-using NpgsqlTypes;
-using System.Resources;
-using System.Threading;
-using System.Reflection;
 using System.Text;
-using NUnit.Framework.Constraints;
+using System.Threading;
+using System.Threading.Tasks;
+using NpgsqlTypes;
+using NUnit.Framework;
 
 namespace Npgsql.Tests
 {
@@ -459,7 +429,9 @@ namespace Npgsql.Tests
 
                     using (var reader = cmd.ExecuteReader(CommandBehavior.SingleRow))
                     {
+                        Assert.That(() => reader.GetInt32(0), Throws.Exception.TypeOf<InvalidOperationException>());
                         Assert.That(reader.Read(), Is.True);
+                        Assert.That(reader.GetInt32(0), Is.EqualTo(1));
                         Assert.That(reader.Read(), Is.False);
                     }
                 }
@@ -818,19 +790,19 @@ namespace Npgsql.Tests
         }
 
         [Test]
-        public void InputAndOutputParameters()
+        [TestCase(CommandBehavior.Default)]
+        [TestCase(CommandBehavior.SequentialAccess)]
+        public void InputAndOutputParameters(CommandBehavior behavior)
         {
             using (var conn = OpenConnection())
-            using (var cmd = new NpgsqlCommand())
+            using (var cmd = new NpgsqlCommand("SELECT @c-1 AS c, @a+2 AS b", conn))
             {
-                cmd.Connection = conn;
-                cmd.CommandText = "Select :a + 2 as b, :c - 1 as c";
+                cmd.Parameters.Add(new NpgsqlParameter("a", 3));
                 var b = new NpgsqlParameter { ParameterName = "b", Direction = ParameterDirection.Output };
                 cmd.Parameters.Add(b);
-                cmd.Parameters.Add(new NpgsqlParameter("a", 3));
                 var c = new NpgsqlParameter { ParameterName = "c", Direction = ParameterDirection.InputOutput, Value = 4 };
                 cmd.Parameters.Add(c);
-                using (cmd.ExecuteReader())
+                using (cmd.ExecuteReader(behavior))
                 {
                     Assert.AreEqual(5, b.Value);
                     Assert.AreEqual(3, c.Value);

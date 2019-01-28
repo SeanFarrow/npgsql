@@ -1,27 +1,4 @@
-﻿#region License
-// The PostgreSQL License
-//
-// Copyright (C) 2018 The Npgsql Development Team
-//
-// Permission to use, copy, modify, and distribute this software and its
-// documentation for any purpose, without fee, and without a written
-// agreement is hereby granted, provided that the above copyright notice
-// and this paragraph and the following two paragraphs appear in all copies.
-//
-// IN NO EVENT SHALL THE NPGSQL DEVELOPMENT TEAM BE LIABLE TO ANY PARTY
-// FOR DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES,
-// INCLUDING LOST PROFITS, ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS
-// DOCUMENTATION, EVEN IF THE NPGSQL DEVELOPMENT TEAM HAS BEEN ADVISED OF
-// THE POSSIBILITY OF SUCH DAMAGE.
-//
-// THE NPGSQL DEVELOPMENT TEAM SPECIFICALLY DISCLAIMS ANY WARRANTIES,
-// INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
-// AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS
-// ON AN "AS IS" BASIS, AND THE NPGSQL DEVELOPMENT TEAM HAS NO OBLIGATIONS
-// TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
-#endregion
-
-using System;
+﻿using System;
 using System.Data;
 using System.Linq;
 using Npgsql.PostgresTypes;
@@ -553,7 +530,7 @@ namespace Npgsql.Tests
         [TestCase("character varying")]
         [TestCase("character varying(10)[]", 10)]
         [TestCase("character(10)", 10)]
-        [TestCase("character")]
+        [TestCase("character", 1)]
         [TestCase("numeric(1000, 2)", null, 1000, 2)]
         [TestCase("numeric(1000)", null, 1000, null)]
         [TestCase("numeric")]
@@ -565,7 +542,7 @@ namespace Npgsql.Tests
         [TestCase("time(2) with time zone", null, 2)]
         [TestCase("interval")]
         [TestCase("interval(2)", null, 2)]
-        [TestCase("bit")]   // Size is implicitly 1
+        [TestCase("bit", 1)]
         [TestCase("bit(3)", 3)]
         [TestCase("bit varying")]
         [TestCase("bit varying(3)", 3)]

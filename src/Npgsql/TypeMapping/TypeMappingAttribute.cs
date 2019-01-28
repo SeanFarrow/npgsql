@@ -1,27 +1,4 @@
-﻿#region License
-// The PostgreSQL License
-//
-// Copyright (C) 2018 The Npgsql Development Team
-//
-// Permission to use, copy, modify, and distribute this software and its
-// documentation for any purpose, without fee, and without a written
-// agreement is hereby granted, provided that the above copyright notice
-// and this paragraph and the following two paragraphs appear in all copies.
-//
-// IN NO EVENT SHALL THE NPGSQL DEVELOPMENT TEAM BE LIABLE TO ANY PARTY
-// FOR DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES,
-// INCLUDING LOST PROFITS, ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS
-// DOCUMENTATION, EVEN IF THE NPGSQL DEVELOPMENT TEAM HAS BEEN ADVISED OF
-// THE POSSIBILITY OF SUCH DAMAGE.
-//
-// THE NPGSQL DEVELOPMENT TEAM SPECIFICALLY DISCLAIMS ANY WARRANTIES,
-// INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
-// AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS
-// ON AN "AS IS" BASIS, AND THE NPGSQL DEVELOPMENT TEAM HAS NO OBLIGATIONS
-// TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
-#endregion
-
-using System;
+﻿using System;
 using System.Data;
 using System.Linq;
 using System.Text;
@@ -60,7 +37,7 @@ namespace Npgsql.TypeMapping
         /// </param>
         internal TypeMappingAttribute(string pgName, NpgsqlDbType? npgsqlDbType, [CanBeNull] DbType[] dbTypes, [CanBeNull] Type[] clrTypes, DbType? inferredDbType)
         {
-            if (String.IsNullOrWhiteSpace(pgName))
+            if (string.IsNullOrWhiteSpace(pgName))
                 throw new ArgumentException("pgName can't be empty", nameof(pgName));
 
             PgName = pgName;
@@ -141,12 +118,12 @@ namespace Npgsql.TypeMapping
             if (DbTypes.Length > 0)
             {
                 sb.Append(" DbTypes=");
-                sb.Append(String.Join(",", DbTypes.Select(t => t.ToString())));
+                sb.Append(string.Join(",", DbTypes.Select(t => t.ToString())));
             }
             if (ClrTypes.Length > 0)
             {
                 sb.Append(" ClrTypes=");
-                sb.Append(String.Join(",", ClrTypes.Select(t => t.Name)));
+                sb.Append(string.Join(",", ClrTypes.Select(t => t.Name)));
             }
             sb.AppendFormat("]");
             return sb.ToString();

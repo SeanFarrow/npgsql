@@ -1,26 +1,3 @@
-#region License
-// The PostgreSQL License
-//
-// Copyright (C) 2018 The Npgsql Development Team
-//
-// Permission to use, copy, modify, and distribute this software and its
-// documentation for any purpose, without fee, and without a written
-// agreement is hereby granted, provided that the above copyright notice
-// and this paragraph and the following two paragraphs appear in all copies.
-//
-// IN NO EVENT SHALL THE NPGSQL DEVELOPMENT TEAM BE LIABLE TO ANY PARTY
-// FOR DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES,
-// INCLUDING LOST PROFITS, ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS
-// DOCUMENTATION, EVEN IF THE NPGSQL DEVELOPMENT TEAM HAS BEEN ADVISED OF
-// THE POSSIBILITY OF SUCH DAMAGE.
-//
-// THE NPGSQL DEVELOPMENT TEAM SPECIFICALLY DISCLAIMS ANY WARRANTIES,
-// INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
-// AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS
-// ON AN "AS IS" BASIS, AND THE NPGSQL DEVELOPMENT TEAM HAS NO OBLIGATIONS
-// TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
-#endregion
-
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -33,7 +10,6 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Globalization;
-using System.Net.Sockets;
 using JetBrains.Annotations;
 using Npgsql.BackendMessages;
 using Npgsql.FrontendMessages;
@@ -214,7 +190,7 @@ namespace Npgsql
                 //  this._transaction = null;
 
                 // All this checking needs revising. It should be simpler.
-                // This this.Connector != null check was added to remove the nullreferenceexception in case
+                // This this.Connector != null check was added to remove the NullReferenceException in case
                 // of the previous connection has been closed which makes Connector null and so the last check would fail.
                 // See bug 1000581 for more details.
                 if (_transaction != null && _connection != null && _connection.Connector != null && _connection.Connector.InTransaction)
@@ -238,7 +214,7 @@ namespace Npgsql
         [Category("Behavior"), DefaultValue(UpdateRowSource.Both)]
         public override UpdateRowSource UpdatedRowSource
         {
-            get { return _updateRowSource; }
+            get => _updateRowSource;
             set
             {
                 switch (value)
@@ -406,10 +382,10 @@ GROUP BY pg_proc.proargnames, pg_proc.proargtypes, pg_proc.proallargtypes, pg_pr
 
         internal void DeriveParameters()
         {
-            if (Statements.Where(s => s?.PreparedStatement.IsExplicit == true).Any())
+            if (Statements.Any(s => s?.PreparedStatement.IsExplicit == true))
                 throw new NpgsqlException("Deriving parameters isn't supported for commands that are already prepared.");
 
-            // Here we unprepare statements that possibly are autoprepared
+            // Here we unprepare statements that possibly are auto-prepared
             Unprepare();
 
             Parameters.Clear();
@@ -444,7 +420,7 @@ GROUP BY pg_proc.proargnames, pg_proc.proargtypes, pg_proc.proallargtypes, pg_pr
                         if (types == null)
                         {
                             if (rdr.IsDBNull(1) || rdr.GetFieldValue<uint[]>(1).Length == 0)
-                                return;  // Parameterless function
+                                return;  // Parameter-less function
                             types = rdr.GetFieldValue<uint[]>(1);
                         }
                     }
@@ -527,7 +503,7 @@ GROUP BY pg_proc.proargnames, pg_proc.proargtypes, pg_proc.proallargtypes, pg_pr
                             var param = statement.InputParameters[i];
                             var paramOid = paramTypeOIDs[i];
 
-                            (var npgsqlDbType, var postgresType) = connector.TypeMapper.GetTypeInfoByOid(paramOid);
+                            var (npgsqlDbType, postgresType) = connector.TypeMapper.GetTypeInfoByOid(paramOid);
 
                             if (param.NpgsqlDbType != NpgsqlDbType.Unknown && param.NpgsqlDbType != npgsqlDbType)
                                 throw new NpgsqlException("The backend parser inferred different types for parameters with the same name. Please try explicit casting within your SQL statement or batch or use different placeholder names.");
@@ -614,7 +590,7 @@ GROUP BY pg_proc.proargnames, pg_proc.proargtypes, pg_proc.proallargtypes, pg_pr
 
             _connectorPreparedOn = connector;
 
-            // It's possible the command was already prepared, or that presistent prepared statements were found for
+            // It's possible the command was already prepared, or that persistent prepared statements were found for
             // all statements. Nothing to do here, move along.
             return needToPrepare
                 ? PrepareLong()
@@ -1138,8 +1114,6 @@ GROUP BY pg_proc.proargnames, pg_proc.proargtypes, pg_proc.proallargtypes, pg_pr
                 using (cancellationToken.Register(cmd => ((NpgsqlCommand)cmd).Cancel(), this))
                 {
                     ValidateParameters();
-                    if ((behavior & CommandBehavior.SequentialAccess) != 0 && Parameters.HasOutputParameters)
-                        throw new NotSupportedException("Output parameters aren't supported with SequentialAccess");
 
                     if (IsExplicitlyPrepared)
                     {
@@ -1186,7 +1160,7 @@ GROUP BY pg_proc.proargnames, pg_proc.proargtypes, pg_proc.proallargtypes, pg_pr
 
                         // We do not wait for the entire send to complete before proceeding to reading -
                         // the sending continues in parallel with the user's reading. Waiting for the
-                        // entire send to complete would trigger a deadlock for multistatement commands,
+                        // entire send to complete would trigger a deadlock for multi-statement commands,
                         // where PostgreSQL sends large results for the first statement, while we're sending large
                         // parameter data for the second. See #641.
                         // Instead, all sends for non-first statements and for non-first buffers are performed

@@ -1,26 +1,3 @@
-#region License
-// The PostgreSQL License
-//
-// Copyright (C) 2018 The Npgsql Development Team
-//
-// Permission to use, copy, modify, and distribute this software and its
-// documentation for any purpose, without fee, and without a written
-// agreement is hereby granted, provided that the above copyright notice
-// and this paragraph and the following two paragraphs appear in all copies.
-//
-// IN NO EVENT SHALL THE NPGSQL DEVELOPMENT TEAM BE LIABLE TO ANY PARTY
-// FOR DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES,
-// INCLUDING LOST PROFITS, ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS
-// DOCUMENTATION, EVEN IF THE NPGSQL DEVELOPMENT TEAM HAS BEEN ADVISED OF
-// THE POSSIBILITY OF SUCH DAMAGE.
-//
-// THE NPGSQL DEVELOPMENT TEAM SPECIFICALLY DISCLAIMS ANY WARRANTIES,
-// INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
-// AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS
-// ON AN "AS IS" BASIS, AND THE NPGSQL DEVELOPMENT TEAM HAS NO OBLIGATIONS
-// TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
-#endregion
-
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -30,7 +7,6 @@ using System.Data.Common;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
@@ -367,7 +343,7 @@ namespace Npgsql
         /// Internal implementation of NextResult
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        protected virtual async Task<bool> NextResult(bool async, bool isConsuming=false)
+        async Task<bool> NextResult(bool async, bool isConsuming=false)
         {
             IBackendMessage msg;
             Debug.Assert(!IsSchemaOnly);
@@ -464,7 +440,31 @@ namespace Npgsql
                     }
                 }
 
-                msg = await ReadMessage(async);
+                // The following is a pretty awful hack to bring back output parameters for sequential readers (#2091)
+                // We should definitely clean up the entire reader design (#1853)
+                if (StatementIndex == 0 && RowDescription != null && Command.Parameters.HasOutputParameters)
+                {
+                    // If output parameters are present and this is the first row of the first resultset,
+                    // we must read it in non-sequential mode because it will be traversed twice (once
+                    // here for the parameters, then as a regular row).
+                    msg = await Connector.ReadMessage(async);
+
+                    // If we got an actual first row (i.e. resultset wasn't empty), we process the message so it can
+                    // be read by PopulateOutputParameters(). We then rewind the buffer to the start of the row, and
+                    // continue to the normal flow, where we will process it again, as if we're reading a totally
+                    // new row (using the same first row).
+                    if (msg is DataRowMessage row)
+                    {
+                        var pos = Connector.ReadBuffer.ReadPosition;
+                        ProcessMessage(row);
+                        PopulateOutputParameters();
+                        Connector.ReadBuffer.ReadPosition = pos;
+                        State = ReaderState.BetweenResults;
+                    }
+                }
+                else
+                    msg = await ReadMessage(async);
+
                 if (RowDescription == null)
                 {
                     // Statement did not generate a resultset (e.g. INSERT)
@@ -500,6 +500,45 @@ namespace Npgsql
             ProcessMessage(Expect<ReadyForQueryMessage>(await Connector.ReadMessage(async)));
             RowDescription = null;
             return false;
+        }
+
+        void PopulateOutputParameters()
+        {
+            // The first row in a stored procedure command that has output parameters needs to be traversed twice -
+            // once for populating the output parameters and once for the actual result set traversal. So in this
+            // case we can't be sequential.
+            Debug.Assert(Command.Parameters.Any(p => p.IsOutputDirection));
+            Debug.Assert(StatementIndex == 0);
+            Debug.Assert(RowDescription != null);
+            Debug.Assert(State == ReaderState.BeforeResult);
+
+            // Temporarily set our state to InResult to allow us to read the values
+            State = ReaderState.InResult;
+
+            var pending = new Queue<object>();
+            var taken = new List<NpgsqlParameter>();
+            for (var i = 0; i < FieldCount; i++)
+            {
+                if (Command.Parameters.TryGetValue(GetName(i), out var p) && p.IsOutputDirection)
+                {
+                    p.Value = GetValue(i);
+                    taken.Add(p);
+                }
+                else
+                    pending.Enqueue(GetValue(i));
+            }
+
+            // Not sure where this odd behavior comes from: all output parameters which did not get matched by
+            // name now get populated with column values which weren't matched. Keeping this for backwards compat,
+            // opened #2252 for investigation.
+            foreach (var p in Command.Parameters.Where(p => p.IsOutputDirection && !taken.Contains(p)))
+            {
+                if (pending.Count == 0)
+                    break;
+                p.Value = pending.Dequeue();
+            }
+
+            State = ReaderState.BeforeResult;  // Set the state back
         }
 
         /// <summary>

@@ -1,34 +1,11 @@
-﻿#region License
-// The PostgreSQL License
-//
-// Copyright (C) 2018 The Npgsql Development Team
-//
-// Permission to use, copy, modify, and distribute this software and its
-// documentation for any purpose, without fee, and without a written
-// agreement is hereby granted, provided that the above copyright notice
-// and this paragraph and the following two paragraphs appear in all copies.
-//
-// IN NO EVENT SHALL THE NPGSQL DEVELOPMENT TEAM BE LIABLE TO ANY PARTY
-// FOR DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES,
-// INCLUDING LOST PROFITS, ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS
-// DOCUMENTATION, EVEN IF THE NPGSQL DEVELOPMENT TEAM HAS BEEN ADVISED OF
-// THE POSSIBILITY OF SUCH DAMAGE.
-//
-// THE NPGSQL DEVELOPMENT TEAM SPECIFICALLY DISCLAIMS ANY WARRANTIES,
-// INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
-// AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS
-// ON AN "AS IS" BASIS, AND THE NPGSQL DEVELOPMENT TEAM HAS NO OBLIGATIONS
-// TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
-#endregion
-
-using JetBrains.Annotations;
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
+using JetBrains.Annotations;
 
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 
@@ -61,6 +38,13 @@ namespace Npgsql
 
         internal Encoding TextEncoding { get; }
 
+        /// <summary>
+        /// Same as <see cref="TextEncoding"/>, except that it does not throw an exception if an invalid char is
+        /// encountered (exception fallback), but rather replaces it with a question mark character (replacement
+        /// fallback).
+        /// </summary>
+        internal Encoding RelaxedTextEncoding { get; }
+
         internal int ReadPosition { get; set; }
         internal int ReadBytesLeft => FilledBytes - ReadPosition;
 
@@ -80,7 +64,12 @@ namespace Npgsql
 
         #region Constructors
 
-        internal NpgsqlReadBuffer([CanBeNull] NpgsqlConnector connector, Stream stream, int size, Encoding textEncoding)
+        internal NpgsqlReadBuffer(
+            [CanBeNull] NpgsqlConnector connector,
+            Stream stream,
+            int size,
+            Encoding textEncoding,
+            Encoding relaxedTextEncoding)
         {
             if (size < MinimumSize)
             {
@@ -92,6 +81,7 @@ namespace Npgsql
             Size = size;
             Buffer = new byte[Size];
             TextEncoding = textEncoding;
+            RelaxedTextEncoding = relaxedTextEncoding;
         }
 
         #endregion
@@ -183,7 +173,7 @@ namespace Npgsql
         internal NpgsqlReadBuffer AllocateOversize(int count)
         {
             Debug.Assert(count > Size);
-            var tempBuf = new NpgsqlReadBuffer(Connector, Underlying, count, TextEncoding);
+            var tempBuf = new NpgsqlReadBuffer(Connector, Underlying, count, TextEncoding, RelaxedTextEncoding);
             CopyTo(tempBuf);
             Clear();
             return tempBuf;
@@ -227,18 +217,10 @@ namespace Npgsql
         #region Read Simple
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public sbyte ReadSByte()
-        {
-            Debug.Assert(sizeof(sbyte) <= ReadBytesLeft);
-            return (sbyte)Buffer[ReadPosition++];
-        }
+        public sbyte ReadSByte() => Read<sbyte>();
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public byte ReadByte()
-        {
-            Debug.Assert(sizeof(byte) <= ReadBytesLeft);
-            return Buffer[ReadPosition++];
-        }
+        public byte ReadByte() => Read<byte>();
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public short ReadInt16()
@@ -337,11 +319,17 @@ namespace Npgsql
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         T Read<T>()
         {
-            Debug.Assert(Unsafe.SizeOf<T>() <= ReadBytesLeft);
+            if (Unsafe.SizeOf<T>() > ReadBytesLeft)
+                ThrowNotSpaceLeft();
+
             var result = Unsafe.ReadUnaligned<T>(ref Buffer[ReadPosition]);
             ReadPosition += Unsafe.SizeOf<T>();
             return result;
         }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        static void ThrowNotSpaceLeft()
+            => throw new InvalidOperationException("There is not enough space left in the buffer.");
 
         public string ReadString(int byteLen)
         {
@@ -359,12 +347,15 @@ namespace Npgsql
             return result;
         }
 
-        public void ReadBytes(byte[] output, int outputOffset, int len)
+        public void ReadBytes(Span<byte> output)
         {
-            Debug.Assert(len <= ReadBytesLeft);
-            System.Buffer.BlockCopy(Buffer, ReadPosition, output, outputOffset, len);
-            ReadPosition += len;
+            Debug.Assert(output.Length <= ReadBytesLeft);
+            new Span<byte>(Buffer, ReadPosition, output.Length).CopyTo(output);
+            ReadPosition += output.Length;
         }
+
+        public void ReadBytes(byte[] output, int outputOffset, int len)
+            => ReadBytes(new Span<byte>(output, outputOffset, len));
 
         #endregion
 
@@ -420,10 +411,17 @@ namespace Npgsql
 
         /// <summary>
         /// Seeks the first null terminator (\0) and returns the string up to it. The buffer must already
+        /// contain the entire string and its terminator. If any character could not be decoded, a question
+        /// mark character is returned instead of throwing an exception.
+        /// </summary>
+        public string ReadNullTerminatedStringRelaxed() => ReadNullTerminatedString(RelaxedTextEncoding);
+
+        /// <summary>
+        /// Seeks the first null terminator (\0) and returns the string up to it. The buffer must already
         /// contain the entire string and its terminator.
         /// </summary>
         /// <param name="encoding">Decodes the messages with this encoding.</param>
-        internal string ReadNullTerminatedString(Encoding encoding)
+        string ReadNullTerminatedString(Encoding encoding)
         {
             int i;
             for (i = ReadPosition; Buffer[i] != 0; i++)

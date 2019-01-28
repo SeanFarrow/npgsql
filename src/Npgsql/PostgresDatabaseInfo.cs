@@ -1,29 +1,4 @@
-﻿#region License
-
-// The PostgreSQL License
-//
-// Copyright (C) 2018 The Npgsql Development Team
-//
-// Permission to use, copy, modify, and distribute this software and its
-// documentation for any purpose, without fee, and without a written
-// agreement is hereby granted, provided that the above copyright notice
-// and this paragraph and the following two paragraphs appear in all copies.
-//
-// IN NO EVENT SHALL THE NPGSQL DEVELOPMENT TEAM BE LIABLE TO ANY PARTY
-// FOR DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES,
-// INCLUDING LOST PROFITS, ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS
-// DOCUMENTATION, EVEN IF THE NPGSQL DEVELOPMENT TEAM HAS BEEN ADVISED OF
-// THE POSSIBILITY OF SUCH DAMAGE.
-//
-// THE NPGSQL DEVELOPMENT TEAM SPECIFICALLY DISCLAIMS ANY WARRANTIES,
-// INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
-// AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS
-// ON AN "AS IS" BASIS, AND THE NPGSQL DEVELOPMENT TEAM HAS NO OBLIGATIONS
-// TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
-
-#endregion
-
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Diagnostics;
@@ -32,6 +7,9 @@ using System.Threading.Tasks;
 using JetBrains.Annotations;
 using Npgsql.Logging;
 using Npgsql.PostgresTypes;
+
+// ReSharper disable StringLiteralTypo
+// ReSharper disable CommentTypo
 
 namespace Npgsql
 {
@@ -86,7 +64,7 @@ namespace Npgsql
         /// True if the 'pg_type' table includes the 'typcategory' column; otherwise, false.
         /// </summary>
         /// <remarks>
-        /// pg_type.typcategory is added after 8.4. 
+        /// pg_type.typcategory is added after 8.4.
         /// see: https://www.postgresql.org/docs/8.4/static/catalog-pg-type.html#CATALOG-TYPCATEGORY-TABLE
         /// </remarks>
         public virtual bool HasTypeCategory => Version >= new Version(8, 4, 0);
@@ -139,8 +117,6 @@ namespace Npgsql
         [NotNull]
         static string GenerateTypesQuery(bool withRange, bool withEnum, bool withEnumSortOrder, bool loadTableComposites, bool withTypeCategory)
             => $@"
-BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY;
-
 /*** Load all supported types ***/
 SELECT ns.nspname, a.typname, a.oid, a.typrelid, a.typbasetype,
 CASE WHEN pg_proc.proname='array_recv' THEN 'a' ELSE a.typtype END AS type,
@@ -184,15 +160,14 @@ WHERE
   (typ.typtype = 'c' AND {(loadTableComposites ? "ns.nspname NOT IN ('pg_catalog', 'information_schema', 'pg_toast')" : "cls.relkind='c'")}) AND
   attnum > 0 AND     /* Don't load system attributes */
   NOT attisdropped
-ORDER BY typ.typname, att.attnum;
+ORDER BY typ.oid, att.attnum;
+
 {(withEnum ? $@"
 /*** Load enum fields ***/
 SELECT pg_type.oid, enumlabel
 FROM pg_enum
 JOIN pg_type ON pg_type.oid=enumtypid
 ORDER BY oid{(withEnumSortOrder ? ", enumsortorder" : "")};" : "")}
-
-COMMIT TRANSACTION;
 ";
 
         /// <summary>
@@ -338,29 +313,51 @@ COMMIT TRANSACTION;
         /// <param name="byOID">The OID of the composite type for which fields are read.</param>
         static void LoadCompositeFields([NotNull] DbDataReader reader, [NotNull] Dictionary<uint, PostgresType> byOID)
         {
+            var currentOID = uint.MaxValue;
             PostgresCompositeType currentComposite = null;
+            var skipCurrent = false;
+
             while (reader.Read())
             {
                 var oid = Convert.ToUInt32(reader[reader.GetOrdinal("oid")]);
-                if (oid != currentComposite?.OID)
+                if (oid != currentOID)
                 {
-                    currentComposite = byOID[oid] as PostgresCompositeType;
-                    if (currentComposite == null)
+                    currentOID = oid;
+
+                    if (!byOID.TryGetValue(oid, out var type))  // See #2020
                     {
-                        Log.Error($"Ignoring unknown composite type with OID {oid} when trying to load composite fields");
+                        Log.Warn($"Skipping composite type with OID {oid} which was not found in pg_type");
                         byOID.Remove(oid);
+                        skipCurrent = true;
                         continue;
                     }
+
+                    currentComposite = type as PostgresCompositeType;
+                    if (currentComposite == null)
+                    {
+                        Log.Warn($"Type {type.Name} was referenced as a composite type but is a {type.GetType()}");
+                        byOID.Remove(oid);
+                        skipCurrent = true;
+                        continue;
+                    }
+
+                    skipCurrent = false;
                 }
+
+                if (skipCurrent)
+                    continue;
 
                 var fieldName = reader.GetString(reader.GetOrdinal("attname"));
                 var fieldTypeOID = Convert.ToUInt32(reader[reader.GetOrdinal("atttypid")]);
-                if (!byOID.TryGetValue(fieldTypeOID, out var fieldType))
+                if (!byOID.TryGetValue(fieldTypeOID, out var fieldType))  // See #2020
                 {
-                    Log.Error($"Skipping composite type {currentComposite.DisplayName} with field {fieldName} with type OID {fieldTypeOID}, which could not be resolved to a PostgreSQL type.");
+                    Log.Warn($"Skipping composite type {currentComposite.DisplayName} with field {fieldName} with type OID {fieldTypeOID}, which could not be resolved to a PostgreSQL type.");
                     byOID.Remove(oid);
+                    skipCurrent = true;
                     continue;
                 }
+
+                Debug.Assert(currentComposite != null);
                 currentComposite.MutableFields.Add(new PostgresCompositeType.Field(fieldName, fieldType));
             }
         }
@@ -372,20 +369,41 @@ COMMIT TRANSACTION;
         /// <param name="byOID">The OID of the enum type for which labels are read.</param>
         static void LoadEnumLabels([NotNull] DbDataReader reader, [NotNull] Dictionary<uint, PostgresType> byOID)
         {
+            var currentOID = uint.MaxValue;
             PostgresEnumType currentEnum = null;
+            var skipCurrent = false;
+
             while (reader.Read())
             {
                 var oid = Convert.ToUInt32(reader[reader.GetOrdinal("oid")]);
-                if (oid != currentEnum?.OID)
+                if (oid != currentOID)
                 {
-                    currentEnum = byOID[oid] as PostgresEnumType;
-                    if (currentEnum == null)
+                    currentOID = oid;
+
+                    if (!byOID.TryGetValue(oid, out var type))  // See #2020
                     {
-                        Log.Error($"Skipping enum labels for type with OID {oid} which wasn't loaded as an enum");
+                        Log.Warn($"Skipping enum type with OID {oid} which was not found in pg_type");
                         byOID.Remove(oid);
+                        skipCurrent = true;
                         continue;
                     }
+
+                    currentEnum = type as PostgresEnumType;
+                    if (currentEnum == null)
+                    {
+                        Log.Warn($"Type {type.Name} was referenced as an enum type but is a {type.GetType()}");
+                        byOID.Remove(oid);
+                        skipCurrent = true;
+                        continue;
+                    }
+
+                    skipCurrent = false;
                 }
+
+                if (skipCurrent)
+                    continue;
+
+                Debug.Assert(currentEnum != null);
                 currentEnum.MutableLabels.Add(reader.GetString(reader.GetOrdinal("enumlabel")));
             }
         }

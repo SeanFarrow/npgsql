@@ -1,29 +1,5 @@
-﻿#region License
-// The PostgreSQL License
-//
-// Copyright (C) 2018 The Npgsql Development Team
-//
-// Permission to use, copy, modify, and distribute this software and its
-// documentation for any purpose, without fee, and without a written
-// agreement is hereby granted, provided that the above copyright notice
-// and this paragraph and the following two paragraphs appear in all copies.
-//
-// IN NO EVENT SHALL THE NPGSQL DEVELOPMENT TEAM BE LIABLE TO ANY PARTY
-// FOR DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES,
-// INCLUDING LOST PROFITS, ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS
-// DOCUMENTATION, EVEN IF THE NPGSQL DEVELOPMENT TEAM HAS BEEN ADVISED OF
-// THE POSSIBILITY OF SUCH DAMAGE.
-//
-// THE NPGSQL DEVELOPMENT TEAM SPECIFICALLY DISCLAIMS ANY WARRANTIES,
-// INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
-// AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS
-// ON AN "AS IS" BASIS, AND THE NPGSQL DEVELOPMENT TEAM HAS NO OBLIGATIONS
-// TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
-#endregion
-
-using System;
+﻿using System;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
 using NodaTime;
 using Npgsql.BackendMessages;
 using Npgsql.TypeHandling;
@@ -44,6 +20,11 @@ namespace Npgsql.NodaTime
 
     class TimestampHandler : NpgsqlSimpleTypeHandler<Instant>, INpgsqlSimpleTypeHandler<LocalDateTime>
     {
+        static readonly Instant Instant0 = Instant.FromUtc(1, 1, 1, 0, 0, 0);
+        static readonly Instant Instant2000 = Instant.FromUtc(2000, 1, 1, 0, 0, 0);
+        static readonly Duration Plus292Years = Duration.FromDays(292 * 365);
+        static readonly Duration Minus292Years = -Plus292Years;
+
         /// <summary>
         /// A deprecated compile-time option of PostgreSQL switches to a floating-point representation of some date/time
         /// fields. Npgsql (currently) does not support this mode.
@@ -110,15 +91,11 @@ namespace Npgsql.NodaTime
             }
         }
 
-        static readonly Instant Instant2000 = Instant.FromUtc(2000, 1, 1, 0, 0, 0);
-
         // value is the number of microseconds from 2000-01-01T00:00:00.
         // Unfortunately NodaTime doesn't have Duration.FromMicroseconds(), so we decompose into milliseconds
         // and nanoseconds
         internal static Instant Decode(long value)
             => Instant2000 + Duration.FromMilliseconds(value / 1000) + Duration.FromNanoseconds(value % 1000 * 1000);
-
-        static readonly Instant Instant0 = Instant.FromUtc(1, 1, 1, 0, 0, 0);
 
         // This is legacy support for PostgreSQL's old floating-point timestamp encoding - finally removed in PG 10 and not used for a long
         // time. Unfortunately CrateDB seems to use this for some reason.
@@ -208,7 +185,18 @@ namespace Npgsql.NodaTime
 
         // We need to write the number of microseconds from 2000-01-01T00:00:00.
         internal static void WriteInteger(Instant instant, NpgsqlWriteBuffer buf)
-            => buf.WriteInt64((long)(instant - Instant2000).TotalNanoseconds / 1000);
+        {
+            var since2000 = instant - Instant2000;
+
+            // The nanoseconds may overflow, so fallback to BigInteger where necessary.
+            var microseconds =
+                since2000 >= Minus292Years &&
+                since2000 <= Plus292Years
+                    ? since2000.ToInt64Nanoseconds() / 1000
+                    : (long)(since2000.ToBigIntegerNanoseconds() / 1000);
+
+            buf.WriteInt64(microseconds);
+        }
 
         // This is legacy support for PostgreSQL's old floating-point timestamp encoding - finally removed in PG 10 and not used for a long
         // time. Unfortunately CrateDB seems to use this for some reason.

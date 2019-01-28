@@ -1,13 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Linq;
 using System.Reflection;
 using System.Text;
 using BenchmarkDotNet.Attributes;
 
 namespace Npgsql.Benchmarks
 {
-    [Config("columns=OperationPerSecond")]
     public class ReadColumns
     {
         NpgsqlConnection _conn;

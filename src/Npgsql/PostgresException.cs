@@ -1,35 +1,12 @@
-#region License
-// The PostgreSQL License
-//
-// Copyright (C) 2018 The Npgsql Development Team
-//
-// Permission to use, copy, modify, and distribute this software and its
-// documentation for any purpose, without fee, and without a written
-// agreement is hereby granted, provided that the above copyright notice
-// and this paragraph and the following two paragraphs appear in all copies.
-//
-// IN NO EVENT SHALL THE NPGSQL DEVELOPMENT TEAM BE LIABLE TO ANY PARTY
-// FOR DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES,
-// INCLUDING LOST PROFITS, ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS
-// DOCUMENTATION, EVEN IF THE NPGSQL DEVELOPMENT TEAM HAS BEEN ADVISED OF
-// THE POSSIBILITY OF SUCH DAMAGE.
-//
-// THE NPGSQL DEVELOPMENT TEAM SPECIFICALLY DISCLAIMS ANY WARRANTIES,
-// INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
-// AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS
-// ON AN "AS IS" BASIS, AND THE NPGSQL DEVELOPMENT TEAM HAS NO OBLIGATIONS
-// TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
-#endregion
-
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using JetBrains.Annotations;
-using Npgsql.BackendMessages;
 using System.Runtime.Serialization;
 using System.Text;
+using JetBrains.Annotations;
+using Npgsql.BackendMessages;
 
 #pragma warning disable CA1032
 
@@ -68,6 +45,7 @@ namespace Npgsql
         /// </summary>
         /// <remarks>
         /// Always present.
+        /// Constants are defined in <seealso cref="PostgresErrorCodes"/>.
         /// See http://www.postgresql.org/docs/current/static/errcodes-appendix.html
         /// </remarks>
         [PublicAPI]
@@ -78,6 +56,7 @@ namespace Npgsql
         /// </summary>
         /// <remarks>
         /// Always present.
+        /// Constants are defined in <seealso cref="PostgresErrorCodes"/>.
         /// See http://www.postgresql.org/docs/current/static/errcodes-appendix.html
         /// </remarks>
         [PublicAPI, Obsolete("Use SqlState instead")]
@@ -241,24 +220,24 @@ namespace Npgsql
             {
                 switch (SqlState)
                 {
-                case "53000":   //insufficient_resources
-                case "53100":   //disk_full
-                case "53200":   //out_of_memory
-                case "53300":   //too_many_connections
-                case "53400":   //configuration_limit_exceeded
-                case "57P03":   //cannot_connect_now
-                case "58000":   //system_error
-                case "58030":   //io_error
-                case "40001":   //serialization_error
-                case "55P03":   //lock_not_available
-                case "55006":   //object_in_use
-                case "55000":   //object_not_in_prerequisite_state
-                case "08000":   //connection_exception
-                case "08003":   //connection_does_not_exist
-                case "08006":   //connection_failure
-                case "08001":   //sqlclient_unable_to_establish_sqlconnection
-                case "08004":   //sqlserver_rejected_establishment_of_sqlconnection
-                case "08007":   //transaction_resolution_unknown
+                case PostgresErrorCodes.InsufficientResources:
+                case PostgresErrorCodes.DiskFull:
+                case PostgresErrorCodes.OutOfMemory:
+                case PostgresErrorCodes.TooManyConnections:
+                case PostgresErrorCodes.ConfigurationLimitExceeded:
+                case PostgresErrorCodes.CannotConnectNow:
+                case PostgresErrorCodes.SystemError:
+                case PostgresErrorCodes.IoError:
+                case PostgresErrorCodes.SerializationFailure:
+                case PostgresErrorCodes.LockNotAvailable:
+                case PostgresErrorCodes.ObjectInUse:
+                case PostgresErrorCodes.ObjectNotInPrerequisiteState:
+                case PostgresErrorCodes.ConnectionException:
+                case PostgresErrorCodes.ConnectionDoesNotExist:
+                case PostgresErrorCodes.ConnectionFailure:
+                case PostgresErrorCodes.SqlClientUnableToEstablishSqlConnection:
+                case PostgresErrorCodes.SqlServerRejectedEstablishmentOfSqlConnection:
+                case PostgresErrorCodes.TransactionResolutionUnknown:
                     return true;
                 default:
                     return false;

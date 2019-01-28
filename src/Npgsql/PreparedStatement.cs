@@ -1,10 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using JetBrains.Annotations;
 using Npgsql.BackendMessages;
-using NpgsqlTypes;
 
 namespace Npgsql
 {
@@ -164,7 +162,7 @@ namespace Npgsql
 
         /// <summary>
         /// The statement is in the process of being unprepared. This is a temporary state that only occurs during
-        /// unpreparation. Specifically, it means that a Close message for the statement has already been written
+        /// unprepare. Specifically, it means that a Close message for the statement has already been written
         /// to the write buffer.
         /// </summary>
         BeingUnprepared,

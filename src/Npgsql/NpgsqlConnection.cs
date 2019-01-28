@@ -1,26 +1,3 @@
-#region License
-// The PostgreSQL License
-//
-// Copyright (C) 2018 The Npgsql Development Team
-//
-// Permission to use, copy, modify, and distribute this software and its
-// documentation for any purpose, without fee, and without a written
-// agreement is hereby granted, provided that the above copyright notice
-// and this paragraph and the following two paragraphs appear in all copies.
-//
-// IN NO EVENT SHALL THE NPGSQL DEVELOPMENT TEAM BE LIABLE TO ANY PARTY
-// FOR DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES,
-// INCLUDING LOST PROFITS, ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS
-// DOCUMENTATION, EVEN IF THE NPGSQL DEVELOPMENT TEAM HAS BEEN ADVISED OF
-// THE POSSIBILITY OF SUCH DAMAGE.
-//
-// THE NPGSQL DEVELOPMENT TEAM SPECIFICALLY DISCLAIMS ANY WARRANTIES,
-// INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
-// AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS
-// ON AN "AS IS" BASIS, AND THE NPGSQL DEVELOPMENT TEAM HAS NO OBLIGATIONS
-// TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
-#endregion
-
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -30,9 +7,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Net.Security;
 using System.Net.Sockets;
-using System.Reflection;
 using System.Runtime.CompilerServices;
-using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -187,7 +162,7 @@ namespace Npgsql
             if (!Settings.Pooling)
                 return;
 
-            // Connstring may be equivalent to one that has already been seen though (e.g. different
+            // The connection string may be equivalent to one that has already been seen though (e.g. different
             // ordering). Have NpgsqlConnectionStringBuilder produce a canonical string representation
             // and recheck.
             var canonical = Settings.ConnectionString;
@@ -208,7 +183,7 @@ namespace Npgsql
 
             if (_pool == newPool)
             {
-                // If the pool we created was the one that ened up being stored we need to increment the appropriate counter.
+                // If the pool we created was the one that ended up being stored we need to increment the appropriate counter.
                 // Avoids a race condition where multiple threads will create a pool but only one will be stored.
                 Counters.NumberOfActiveConnectionPools.Increment();
             }
@@ -237,9 +212,10 @@ namespace Npgsql
             var mapper = Connector.TypeMapper;
             if (mapper.ChangeCounter != TypeMapping.GlobalTypeMapper.Instance.ChangeCounter)
             {
-                // We always do this synchronously which isn't amazing but not very important
+                // We always do this synchronously which isn't amazing but not very important, because
+                // it's supposed to be a pretty rare event and the whole point is to keep this method
+                // non-async
                 Connector.LoadDatabaseInfo(NpgsqlTimeout.Infinite, false).GetAwaiter().GetResult();
-                mapper.Reset();
             }
 
             Debug.Assert(Connector.Connection != null, "Open done but connector not set on Connection");
@@ -262,7 +238,7 @@ namespace Npgsql
                     var timeout = new NpgsqlTimeout(TimeSpan.FromSeconds(ConnectionTimeout));
                     Transaction transaction = null;
 
-                    if (_pool == null) // Unpooled connection
+                    if (_pool == null) // Un-pooled connection
                     {
                         if (!Settings.PersistSecurityInfo)
                             _userFacingConnectionString = Settings.ToStringWithoutPassword();
@@ -307,10 +283,7 @@ namespace Npgsql
                         // or global mappings may have changed. Bring this up to date if needed.
                         mapper = Connector.TypeMapper;
                         if (mapper.ChangeCounter != TypeMapping.GlobalTypeMapper.Instance.ChangeCounter)
-                        {
                             await Connector.LoadDatabaseInfo(NpgsqlTimeout.Infinite, async);
-                            mapper.Reset();
-                        }
                     }
 
                     // We may have gotten an already enlisted pending connector above, no need to enlist in that case
@@ -424,8 +397,10 @@ namespace Npgsql
         internal string Password => Settings.Password;
 
         // The following two lines are here for backwards compatibility with the EF6 provider
+        // ReSharper disable UnusedMember.Global
         internal string EntityTemplateDatabase => Settings.EntityTemplateDatabase;
         internal string EntityAdminDatabase => Settings.EntityAdminDatabase;
+        // ReSharper restore UnusedMember.Global
 
         #endregion Configuration settings
 
@@ -569,7 +544,7 @@ namespace Npgsql
         }
 
         /// <summary>
-        /// Enlist transation.
+        /// Enlist transaction.
         /// </summary>
         public override void EnlistTransaction(Transaction transaction)
         {
@@ -793,7 +768,7 @@ namespace Npgsql
         /// <summary>
         /// Reports whether the backend uses the newer integer timestamp representation.
         /// Note that the old floating point representation is not supported.
-        /// Meant for use by type plugins (e.g. Nodatime)
+        /// Meant for use by type plugins (e.g. NodaTime)
         /// </summary>
         [Browsable(false)]
         [PublicAPI]
@@ -1072,7 +1047,7 @@ namespace Npgsql
         [Obsolete("Use NpgsqlConnection.GlobalTypeMapper.MapEnum() instead")]
         public static void MapEnumGlobally<TEnum>(string pgName = null, INpgsqlNameTranslator nameTranslator = null)
             where TEnum : struct, Enum
-            => NpgsqlConnection.GlobalTypeMapper.MapEnum<TEnum>(pgName, nameTranslator);
+            => GlobalTypeMapper.MapEnum<TEnum>(pgName, nameTranslator);
 
         /// <summary>
         /// Removes a previous global enum mapping.
@@ -1085,10 +1060,11 @@ namespace Npgsql
         /// A component which will be used to translate CLR names (e.g. SomeClass) into database names (e.g. some_class).
         /// Defaults to <see cref="NpgsqlSnakeCaseNameTranslator"/>
         /// </param>
+        [PublicAPI]
         [Obsolete("Use NpgsqlConnection.GlobalTypeMapper.UnmapEnum() instead")]
         public static void UnmapEnumGlobally<TEnum>(string pgName = null, INpgsqlNameTranslator nameTranslator = null)
             where TEnum : struct, Enum
-            => NpgsqlConnection.GlobalTypeMapper.UnmapEnum<TEnum>(pgName, nameTranslator);
+            => GlobalTypeMapper.UnmapEnum<TEnum>(pgName, nameTranslator);
 
         #endregion
 
@@ -1118,6 +1094,7 @@ namespace Npgsql
         /// Defaults to <see cref="NpgsqlSnakeCaseNameTranslator"/>
         /// </param>
         /// <typeparam name="T">The .NET type to be mapped</typeparam>
+        [PublicAPI]
         [Obsolete("Use NpgsqlConnection.TypeMapper.MapComposite() instead")]
         public void MapComposite<T>(string pgName = null, INpgsqlNameTranslator nameTranslator = null) where T : new()
             => TypeMapper.MapComposite<T>(pgName, nameTranslator);
@@ -1144,9 +1121,10 @@ namespace Npgsql
         /// Defaults to <see cref="NpgsqlSnakeCaseNameTranslator"/>
         /// </param>
         /// <typeparam name="T">The .NET type to be mapped</typeparam>
+        [PublicAPI]
         [Obsolete("Use NpgsqlConnection.GlobalTypeMapper.MapComposite() instead")]
         public static void MapCompositeGlobally<T>(string pgName = null, INpgsqlNameTranslator nameTranslator = null) where T : new()
-            => NpgsqlConnection.GlobalTypeMapper.MapComposite<T>(pgName, nameTranslator);
+            => GlobalTypeMapper.MapComposite<T>(pgName, nameTranslator);
 
         /// <summary>
         /// Removes a previous global enum mapping.
@@ -1159,9 +1137,10 @@ namespace Npgsql
         /// A component which will be used to translate CLR names (e.g. SomeClass) into database names (e.g. some_class).
         /// Defaults to <see cref="NpgsqlSnakeCaseNameTranslator"/>
         /// </param>
+        [PublicAPI]
         [Obsolete("Use NpgsqlConnection.GlobalTypeMapper.UnmapComposite() instead")]
         public static void UnmapCompositeGlobally<T>(string pgName, INpgsqlNameTranslator nameTranslator = null) where T : new()
-            => NpgsqlConnection.GlobalTypeMapper.UnmapComposite<T>(pgName, nameTranslator);
+            => GlobalTypeMapper.UnmapComposite<T>(pgName, nameTranslator);
 
         #endregion
 
@@ -1214,7 +1193,7 @@ namespace Npgsql
         /// Waits asynchronously until an asynchronous PostgreSQL messages (e.g. a notification)
         /// arrives, and exits immediately. The asynchronous message is delivered via the normal events
         /// (<see cref="Notification"/>, <see cref="Notice"/>).
-        /// CancelationToken can not cancel wait operation if underlying NetworkStream does not support it
+        /// CancellationToken can not cancel wait operation if underlying NetworkStream does not support it
         /// (see https://stackoverflow.com/questions/12421989/networkstream-readasync-with-a-cancellation-token-never-cancels ).
         /// </summary>
         [PublicAPI]

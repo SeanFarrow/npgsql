@@ -1,13 +1,9 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Data;
-using System.Linq;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
-using NpgsqlTypes;
-using NUnit.Framework;
 using System.Transactions;
+using NUnit.Framework;
 
 namespace Npgsql.Tests
 {
@@ -340,6 +336,27 @@ namespace Npgsql.Tests
                 catch (TransactionException)
                 {
                     //do nothing
+                }
+            }
+        }
+
+        [Test]
+        public void Bug2274()
+        {
+            using (var conn = OpenConnection())
+            using (var cmd = new NpgsqlCommand("SELECT 1", conn))
+            {
+                cmd.Parameters.Add(new NpgsqlParameter
+                {
+                    ParameterName = "p",
+                    Direction = ParameterDirection.Output
+                });
+                using (var reader = cmd.ExecuteReader(CommandBehavior.SingleRow))
+                {
+                    Assert.That(() => reader.GetInt32(0), Throws.Exception.TypeOf<InvalidOperationException>());
+                    Assert.That(reader.Read(), Is.True);
+                    Assert.That(reader.GetInt32(0), Is.EqualTo(1));
+                    Assert.That(reader.Read(), Is.False);
                 }
             }
         }

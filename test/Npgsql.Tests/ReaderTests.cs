@@ -1,40 +1,14 @@
-﻿#region License
-// The PostgreSQL License
-//
-// Copyright (C) 2018 The Npgsql Development Team
-//
-// Permission to use, copy, modify, and distribute this software and its
-// documentation for any purpose, without fee, and without a written
-// agreement is hereby granted, provided that the above copyright notice
-// and this paragraph and the following two paragraphs appear in all copies.
-//
-// IN NO EVENT SHALL THE NPGSQL DEVELOPMENT TEAM BE LIABLE TO ANY PARTY
-// FOR DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES,
-// INCLUDING LOST PROFITS, ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS
-// DOCUMENTATION, EVEN IF THE NPGSQL DEVELOPMENT TEAM HAS BEEN ADVISED OF
-// THE POSSIBILITY OF SUCH DAMAGE.
-//
-// THE NPGSQL DEVELOPMENT TEAM SPECIFICALLY DISCLAIMS ANY WARRANTIES,
-// INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
-// AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS
-// ON AN "AS IS" BASIS, AND THE NPGSQL DEVELOPMENT TEAM HAS NO OBLIGATIONS
-// TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
-#endregion
-
-using System;
+﻿using System;
 using System.Data;
 using System.IO;
-using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using NUnit.Framework;
-using NUnit.Framework.Constraints;
-using Npgsql;
 using Npgsql.BackendMessages;
 using Npgsql.PostgresTypes;
 using Npgsql.TypeHandling;
 using Npgsql.TypeMapping;
 using NpgsqlTypes;
+using NUnit.Framework;
 
 namespace Npgsql.Tests
 {
@@ -370,7 +344,7 @@ namespace Npgsql.Tests
         [TestCase("character varying")]
         [TestCase("character varying(10)[]")]
         [TestCase("character(10)")]
-        [TestCase("character")]
+        [TestCase("character", "character(1)")]
         [TestCase("numeric(1000, 2)")]
         [TestCase("numeric(1000)")]
         [TestCase("numeric")]
@@ -382,18 +356,20 @@ namespace Npgsql.Tests
         [TestCase("time(2) with time zone")]
         [TestCase("interval")]
         [TestCase("interval(2)")]
-        [TestCase("bit")]
+        [TestCase("bit", "bit(1)")]
         [TestCase("bit(3)")]
         [TestCase("bit varying")]
         [TestCase("bit varying(3)")]
-        public void GetDataTypeName(string typeName)
+        public void GetDataTypeName(string typeName, string normalizedName = null)
         {
+            if (normalizedName == null)
+                normalizedName = typeName;
             using (var conn = OpenConnection())
             using (var cmd = new NpgsqlCommand($"SELECT NULL::{typeName} AS some_column", conn))
             using (var reader = cmd.ExecuteReader(Behavior))
             {
                 reader.Read();
-                Assert.That(reader.GetDataTypeName(0), Is.EqualTo(typeName));
+                Assert.That(reader.GetDataTypeName(0), Is.EqualTo(normalizedName));
             }
         }
 
@@ -547,8 +523,6 @@ namespace Npgsql.Tests
         [Test]
         public void ExecuteReaderGettingEmptyResultSetWithOutputParameter()
         {
-            if (IsSequential)
-                Assert.Pass("Not supported in sequential mode");
             using (var conn = OpenConnection())
             {
                 conn.ExecuteNonQuery("CREATE TEMP TABLE data (name TEXT)");

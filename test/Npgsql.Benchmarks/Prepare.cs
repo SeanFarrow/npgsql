@@ -3,13 +3,13 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using BenchmarkDotNet.Attributes;
+
 // ReSharper disable UnusedMember.Global
 // ReSharper disable MemberCanBePrivate.Global
+// ReSharper disable AssignNullToNotNullAttribute.Global
 
 namespace Npgsql.Benchmarks
 {
-    [SuppressMessage("ReSharper", "AssignNullToNotNullAttribute")]
-    [Config("columns=OperationPerSecond")]
     public class Prepare
     {
         NpgsqlConnection _conn, _autoPreparingConn;
@@ -56,7 +56,7 @@ INSERT INTO table{i} (id, data) VALUES (1, {i});
         [GlobalCleanup]
         public void GlobalCleanup()
         {
-            _conn.Dispose();            
+            _conn.Dispose();
         }
 
         public Prepare()

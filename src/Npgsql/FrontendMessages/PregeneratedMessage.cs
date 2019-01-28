@@ -1,33 +1,7 @@
-﻿#region License
-// The PostgreSQL License
-//
-// Copyright (C) 2018 The Npgsql Development Team
-//
-// Permission to use, copy, modify, and distribute this software and its
-// documentation for any purpose, without fee, and without a written
-// agreement is hereby granted, provided that the above copyright notice
-// and this paragraph and the following two paragraphs appear in all copies.
-//
-// IN NO EVENT SHALL THE NPGSQL DEVELOPMENT TEAM BE LIABLE TO ANY PARTY
-// FOR DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES,
-// INCLUDING LOST PROFITS, ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS
-// DOCUMENTATION, EVEN IF THE NPGSQL DEVELOPMENT TEAM HAS BEEN ADVISED OF
-// THE POSSIBILITY OF SUCH DAMAGE.
-//
-// THE NPGSQL DEVELOPMENT TEAM SPECIFICALLY DISCLAIMS ANY WARRANTIES,
-// INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
-// AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS
-// ON AN "AS IS" BASIS, AND THE NPGSQL DEVELOPMENT TEAM HAS NO OBLIGATIONS
-// TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
-#endregion
-
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Threading;
 
 namespace Npgsql.FrontendMessages
 {
@@ -71,16 +45,14 @@ namespace Npgsql.FrontendMessages
             var buf = new NpgsqlWriteBuffer(null, new MemoryStream(), NpgsqlWriteBuffer.MinimumSize, Encoding.ASCII);
             var message = new QueryMessage(PGUtil.UTF8Encoding);
 
-            BeginTrans                = Generate(buf, message, "BEGIN");
-            SetTransRepeatableRead    = Generate(buf, message, "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ");
-            SetTransSerializable      = Generate(buf, message, "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE");
-            SetTransReadCommitted     = Generate(buf, message, "SET TRANSACTION ISOLATION LEVEL READ COMMITTED");
-            SetTransReadUncommitted   = Generate(buf, message, "SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED");
-            CommitTransaction         = Generate(buf, message, "COMMIT");
-            RollbackTransaction       = Generate(buf, message, "ROLLBACK");
-            KeepAlive                 = Generate(buf, message, "SELECT NULL");
-
-            DiscardAll                = Generate(buf, message, "DISCARD ALL");
+            BeginTransRepeatableRead    = Generate(buf, message, "BEGIN ISOLATION LEVEL REPEATABLE READ");
+            BeginTransSerializable      = Generate(buf, message, "BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE");
+            BeginTransReadCommitted     = Generate(buf, message, "BEGIN TRANSACTION ISOLATION LEVEL READ COMMITTED");
+            BeginTransReadUncommitted   = Generate(buf, message, "BEGIN TRANSACTION ISOLATION LEVEL READ UNCOMMITTED");
+            CommitTransaction           = Generate(buf, message, "COMMIT");
+            RollbackTransaction         = Generate(buf, message, "ROLLBACK");
+            KeepAlive                   = Generate(buf, message, "SELECT NULL");
+            DiscardAll                  = Generate(buf, message, "DISCARD ALL");
         }
 
         internal static PregeneratedMessage Generate(NpgsqlWriteBuffer buf, QueryMessage queryMessage, string query, int responseMessageCount=2)
@@ -94,11 +66,10 @@ namespace Npgsql.FrontendMessages
             return new PregeneratedMessage(bytes, description, responseMessageCount);
         }
 
-        internal static readonly PregeneratedMessage BeginTrans;
-        internal static readonly PregeneratedMessage SetTransRepeatableRead;
-        internal static readonly PregeneratedMessage SetTransSerializable;
-        internal static readonly PregeneratedMessage SetTransReadCommitted;
-        internal static readonly PregeneratedMessage SetTransReadUncommitted;
+        internal static readonly PregeneratedMessage BeginTransRepeatableRead;
+        internal static readonly PregeneratedMessage BeginTransSerializable;
+        internal static readonly PregeneratedMessage BeginTransReadCommitted;
+        internal static readonly PregeneratedMessage BeginTransReadUncommitted;
         internal static readonly PregeneratedMessage CommitTransaction;
         internal static readonly PregeneratedMessage RollbackTransaction;
         internal static readonly PregeneratedMessage KeepAlive;

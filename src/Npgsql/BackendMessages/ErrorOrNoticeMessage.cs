@@ -1,29 +1,5 @@
-﻿#region License
-// The PostgreSQL License
-//
-// Copyright (C) 2018 The Npgsql Development Team
-//
-// Permission to use, copy, modify, and distribute this software and its
-// documentation for any purpose, without fee, and without a written
-// agreement is hereby granted, provided that the above copyright notice
-// and this paragraph and the following two paragraphs appear in all copies.
-//
-// IN NO EVENT SHALL THE NPGSQL DEVELOPMENT TEAM BE LIABLE TO ANY PARTY
-// FOR DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES,
-// INCLUDING LOST PROFITS, ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS
-// DOCUMENTATION, EVEN IF THE NPGSQL DEVELOPMENT TEAM HAS BEEN ADVISED OF
-// THE POSSIBILITY OF SUCH DAMAGE.
-//
-// THE NPGSQL DEVELOPMENT TEAM SPECIFICALLY DISCLAIMS ANY WARRANTIES,
-// INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
-// AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS
-// ON AN "AS IS" BASIS, AND THE NPGSQL DEVELOPMENT TEAM HAS NO OBLIGATIONS
-// TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
-#endregion
-
-using System;
+﻿using System;
 using Npgsql.Logging;
-using System.Runtime.Serialization;
 
 namespace Npgsql.BackendMessages
 {
@@ -61,22 +37,22 @@ namespace Npgsql.BackendMessages
                     // Null terminator; error message fully consumed.
                     return;
                 case ErrorFieldTypeCode.Severity:
-                    Severity = buf.ReadNullTerminatedString(PGUtil.RelaxedUTF8Encoding);
+                    Severity = buf.ReadNullTerminatedStringRelaxed();
                     break;
                 case ErrorFieldTypeCode.Code:
-                    Code = buf.ReadNullTerminatedString();
+                    Code = buf.ReadNullTerminatedStringRelaxed();
                     break;
                 case ErrorFieldTypeCode.Message:
-                    Message = buf.ReadNullTerminatedString(PGUtil.RelaxedUTF8Encoding);
+                    Message = buf.ReadNullTerminatedStringRelaxed();
                     break;
                 case ErrorFieldTypeCode.Detail:
-                    Detail = buf.ReadNullTerminatedString(PGUtil.RelaxedUTF8Encoding);
+                    Detail = buf.ReadNullTerminatedStringRelaxed();
                     break;
                 case ErrorFieldTypeCode.Hint:
-                    Hint = buf.ReadNullTerminatedString(PGUtil.RelaxedUTF8Encoding);
+                    Hint = buf.ReadNullTerminatedStringRelaxed();
                     break;
                 case ErrorFieldTypeCode.Position:
-                    var positionStr = buf.ReadNullTerminatedString();
+                    var positionStr = buf.ReadNullTerminatedStringRelaxed();
                     if (!int.TryParse(positionStr, out var position)) {
                         Log.Warn("Non-numeric position in ErrorResponse: " + positionStr);
                         continue;
@@ -84,46 +60,46 @@ namespace Npgsql.BackendMessages
                     Position = position;
                     break;
                 case ErrorFieldTypeCode.InternalPosition:
-                    var internalPositionStr = buf.ReadNullTerminatedString();
-                    if (!Int32.TryParse(internalPositionStr, out var internalPosition)) {
+                    var internalPositionStr = buf.ReadNullTerminatedStringRelaxed();
+                    if (!int.TryParse(internalPositionStr, out var internalPosition)) {
                         Log.Warn("Non-numeric position in ErrorResponse: " + internalPositionStr);
                         continue;
                     }
                     InternalPosition = internalPosition;
                     break;
                 case ErrorFieldTypeCode.InternalQuery:
-                    InternalQuery = buf.ReadNullTerminatedString();
+                    InternalQuery = buf.ReadNullTerminatedStringRelaxed();
                     break;
                 case ErrorFieldTypeCode.Where:
-                    Where = buf.ReadNullTerminatedString();
+                    Where = buf.ReadNullTerminatedStringRelaxed();
                     break;
                 case ErrorFieldTypeCode.File:
-                    File = buf.ReadNullTerminatedString(PGUtil.RelaxedUTF8Encoding);
+                    File = buf.ReadNullTerminatedStringRelaxed();
                     break;
                 case ErrorFieldTypeCode.Line:
-                    Line = buf.ReadNullTerminatedString();
+                    Line = buf.ReadNullTerminatedStringRelaxed();
                     break;
                 case ErrorFieldTypeCode.Routine:
-                    Routine = buf.ReadNullTerminatedString();
+                    Routine = buf.ReadNullTerminatedStringRelaxed();
                     break;
                 case ErrorFieldTypeCode.SchemaName:
-                    SchemaName = buf.ReadNullTerminatedString();
+                    SchemaName = buf.ReadNullTerminatedStringRelaxed();
                     break;
                 case ErrorFieldTypeCode.TableName:
-                    TableName = buf.ReadNullTerminatedString();
+                    TableName = buf.ReadNullTerminatedStringRelaxed();
                     break;
                 case ErrorFieldTypeCode.ColumnName:
-                    ColumnName = buf.ReadNullTerminatedString();
+                    ColumnName = buf.ReadNullTerminatedStringRelaxed();
                     break;
                 case ErrorFieldTypeCode.DataTypeName:
-                    DataTypeName = buf.ReadNullTerminatedString();
+                    DataTypeName = buf.ReadNullTerminatedStringRelaxed();
                     break;
                 case ErrorFieldTypeCode.ConstraintName:
-                    ConstraintName = buf.ReadNullTerminatedString();
+                    ConstraintName = buf.ReadNullTerminatedStringRelaxed();
                     break;
                 default:
                     // Unknown error field; consume and discard.
-                    buf.ReadNullTerminatedString();
+                    buf.ReadNullTerminatedStringRelaxed();
                     break;
                 }
             }
