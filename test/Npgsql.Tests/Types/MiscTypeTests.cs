@@ -433,6 +433,48 @@ namespace Npgsql.Tests.Types
             }
         }
 
+        [Test]
+        public void Lsn()
+        {
+            var expected = new NpgsqlLsn(23, 42);
+            Assert.That(expected.Lower, Is.EqualTo(42));
+            Assert.That(expected.Upper, Is.EqualTo(23));
+            Assert.That(expected.Value, Is.EqualTo(98784247850));
+
+            using (var conn = OpenConnection())
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = "SELECT '2A/17'::pg_lsn, @p1, @p2, @p1::TEXT";
+                cmd.Parameters.AddWithValue("p1", NpgsqlDbType.Lsn, expected);
+                cmd.Parameters.AddWithValue("p2", NpgsqlDbType.Lsn, "7FFFFFF/F4240");
+                using (var reader = cmd.ExecuteReader())
+                {
+                    reader.Read();
+                    Assert.AreEqual(0x17, reader.GetFieldValue<NpgsqlLsn>(0).Lower);
+                    Assert.AreEqual(0x2A, reader.GetFieldValue<NpgsqlLsn>(0).Upper);
+                    Assert.AreEqual(expected.Lower, reader.GetFieldValue<NpgsqlLsn>(1).Lower);
+                    Assert.AreEqual(expected.Upper, reader.GetFieldValue<NpgsqlLsn>(1).Upper);
+                    Assert.AreEqual(0x7FFFFFF, reader.GetFieldValue<NpgsqlLsn>(2).Upper);
+                    Assert.AreEqual(0xF4240, reader.GetFieldValue<NpgsqlLsn>(2).Lower);
+                    Assert.AreEqual(expected.ToString(), reader.GetString(3));
+                }
+            }
+
+            Assert.Throws<InvalidCastException>(() => NpgsqlLsn.Parse(""));
+            Assert.Throws<InvalidCastException>(() => NpgsqlLsn.Parse("1/100000000"));
+            Assert.Throws<InvalidCastException>(() => NpgsqlLsn.Parse("100000000/1"));
+            Assert.Throws<InvalidCastException>(() => NpgsqlLsn.Parse("1/"));
+            Assert.Throws<InvalidCastException>(() => NpgsqlLsn.Parse("/1"));
+
+            Assert.IsTrue(NpgsqlLsn.TryParse("10000000/1", out var parsed));
+
+            Assert.That(parsed.Upper, Is.EqualTo(0x1000_0000));
+            Assert.That(parsed.Lower, Is.EqualTo(1));
+            Assert.That(parsed.Value, Is.EqualTo(0x1000_0000_0000_0001));
+
+            Assert.That(NpgsqlLsn.Parse(parsed.ToString()), Is.EqualTo(parsed));
+        }
+
         [Test, IssueLink("https://github.com/npgsql/npgsql/issues/1138")]
         public void Void()
         {
@@ -478,16 +520,10 @@ namespace Npgsql.Tests.Types
         }
 
         [Test]
-        public void TestXmlParameter()
-        {
-            TestXmlParameter_Internal(false);
-        }
+        public void TestXmlParameter() => TestXmlParameter_Internal(false);
 
         [Test]
-        public void TestXmlParameterPrepared()
-        {
-            TestXmlParameter_Internal(true);
-        }
+        public void TestXmlParameterPrepared() => TestXmlParameter_Internal(true);
 
         private void TestXmlParameter_Internal(bool prepare)
         {
@@ -515,9 +551,12 @@ namespace Npgsql.Tests.Types
             using (var conn = OpenConnection())
             using (var command = new NpgsqlCommand("select case when (foo is null) then false else foo end as bar from (select :a as foo) as x", conn))
             {
-                var p0 = new NpgsqlParameter(":a", true);
-                // with setting pramater type
-                p0.DbType = DbType.Boolean;
+                var p0 = new NpgsqlParameter(":a", true)
+                {
+                    // with setting pramater type
+                    DbType = DbType.Boolean
+                };
+
                 command.Parameters.Add(p0);
                 command.ExecuteScalar();
             }
@@ -564,16 +603,10 @@ namespace Npgsql.Tests.Types
         }
 
         [Test]
-        public void TestBoolParameter()
-        {
-            TestBoolParameter_Internal(false);
-        }
+        public void TestBoolParameter() => TestBoolParameter_Internal(false);
 
         [Test]
-        public void TestBoolParameterPrepared()
-        {
-            TestBoolParameter_Internal(true);
-        }
+        public void TestBoolParameterPrepared() => TestBoolParameter_Internal(true);
 
         [Test]
         [Ignore("")]
@@ -605,8 +638,10 @@ namespace Npgsql.Tests.Types
                 var command = new NpgsqlCommand(createTable, conn);
                 command.ExecuteNonQuery();
 
-                var uuidDbParam = new NpgsqlParameter(":param1", NpgsqlDbType.Uuid);
-                uuidDbParam.Value = Guid.NewGuid();
+                var uuidDbParam = new NpgsqlParameter(":param1", NpgsqlDbType.Uuid)
+                {
+                    Value = Guid.NewGuid()
+                };
 
                 command = new NpgsqlCommand(@"INSERT INTO person (person_uuid) VALUES (:param1);", conn);
                 command.Parameters.Add(uuidDbParam);
@@ -614,6 +649,7 @@ namespace Npgsql.Tests.Types
 
                 command = new NpgsqlCommand("SELECT person_uuid::uuid FROM person LIMIT 1", conn);
                 var result = command.ExecuteScalar();
+
                 Assert.AreEqual(typeof(Guid), result.GetType());
             }
         }
