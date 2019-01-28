@@ -117,8 +117,10 @@ namespace Npgsql
         ParseComplete         = (byte)'1',
         PasswordPacket        = (byte)' ',
         PortalSuspended       = (byte)'s',
+        PrimaryKeepAlive      = (byte)'k',
         ReadyForQuery         = (byte)'Z',
         RowDescription        = (byte)'T',
+        WalData               = (byte)'w',
     }
 
     enum StatementOrPortal : byte
