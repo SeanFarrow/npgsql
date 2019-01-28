@@ -13,6 +13,11 @@ namespace Npgsql.Replication
         /// <param name="connection"></param>
         public static void CreateReplicationConnection(this NpgsqlConnection connection)
         {
+            if (connection == null)
+            {
+                throw new ArgumentNullException(nameof(connection));
+            }
+
             throw new NotImplementedException();
         }
     }
